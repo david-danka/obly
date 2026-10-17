@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "obly"
+version = "0.1.0"
+description = "Every obol counts. A local-first, opinionated personal finance tracker and lifetime planner."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+keywords = ["personal-finance", "budgeting", "sqlite", "cli"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Office/Business :: Financial :: Accounting",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/obly"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
