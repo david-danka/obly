@@ -1,8 +1,9 @@
-"""SQLite connection handling."""
+"""SQLite connection handling and schema setup."""
 
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
+from importlib.resources import files
 from pathlib import Path
 
 MIN_SQLITE_VERSION = (3, 37, 0)  # STRICT tables
@@ -41,3 +42,21 @@ def connect(path: str | Path) -> Generator[sqlite3.Connection]:
             yield conn
     finally:
         conn.close()
+
+
+def create_schema(conn: sqlite3.Connection) -> None:
+    """Create all tables in an empty database.
+
+    The schema runs in a single transaction. If it fails, `connect` rolls
+    the transaction back when the error leaves its block, so the database
+    is left unchanged.
+
+    Args:
+        conn: Connection to an empty database.
+
+    Raises:
+        sqlite3.OperationalError: If the schema cannot be applied, for
+            example because the tables already exist.
+    """
+    schema = files("obly").joinpath("schema.sql").read_text(encoding="utf-8")
+    conn.executescript(schema)

@@ -1,11 +1,11 @@
-"""Tests of `obly.db`: connection handling."""
+"""Tests of `obly.db`: connection handling and schema setup."""
 
 import sqlite3
 from pathlib import Path
 
 import pytest
 
-from obly.db import connect
+from obly.db import connect, create_schema
 
 
 class Boom(Exception):
@@ -90,3 +90,11 @@ class TestConnect:
         with pytest.raises(RuntimeError, match="3.37.0"):
             with connect(":memory:"):
                 pass
+
+
+class TestCreateSchema:
+    """Tests of `obly.db.create_schema`."""
+
+    def test_cannot_be_applied_twice(self, db: sqlite3.Connection) -> None:
+        with pytest.raises(sqlite3.OperationalError, match="already exists"):
+            create_schema(db)
