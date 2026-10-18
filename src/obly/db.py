@@ -37,7 +37,9 @@ def connect(path: str | Path) -> Generator[sqlite3.Connection]:
     try:
         conn.execute("PRAGMA foreign_keys = ON")
         if conn.execute("PRAGMA foreign_keys").fetchone() != (1,):
-            raise RuntimeError("SQLite foreign key enforcement could not be enabled")
+            raise RuntimeError(
+                "SQLite foreign key enforcement could not be enabled"
+            )
         with conn:
             yield conn
     finally:

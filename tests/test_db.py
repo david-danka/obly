@@ -34,6 +34,20 @@ def count_items(path: Path) -> int:
         return conn.execute("SELECT count(*) FROM items").fetchone()[0]
 
 
+def insert_item_then_fail(path: Path) -> None:
+    """Insert a row inside a `connect` block, then fail before it ends.
+
+    Args:
+        path: Path of the database file.
+
+    Raises:
+        Boom: Always, after the row is inserted.
+    """
+    with connect(path) as conn:
+        insert_item(conn)
+        raise Boom
+
+
 @pytest.fixture
 def db_file(tmp_path: Path) -> Path:
     """Provide a database file with an empty `items` test table.
@@ -67,9 +81,7 @@ class TestConnect:
 
     def test_changes_are_rolled_back_on_error(self, db_file: Path) -> None:
         with pytest.raises(Boom):
-            with connect(db_file) as conn:
-                insert_item(conn)
-                raise Boom
+            insert_item_then_fail(db_file)
         assert count_items(db_file) == 0
 
     def test_connection_is_closed_on_success(self) -> None:
@@ -79,17 +91,20 @@ class TestConnect:
             conn.execute("SELECT 1")
 
     def test_connection_is_closed_on_error(self) -> None:
-        with pytest.raises(Boom):
-            with connect(":memory:") as conn:
-                raise Boom
+        with pytest.raises(Boom), connect(":memory:") as conn:
+            raise Boom
         with pytest.raises(sqlite3.ProgrammingError, match="closed"):
             conn.execute("SELECT 1")
 
-    def test_old_sqlite_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_old_sqlite_is_rejected(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(sqlite3, "sqlite_version_info", (3, 36, 0))
-        with pytest.raises(RuntimeError, match="3.37.0"):
-            with connect(":memory:"):
-                pass
+        with (
+            pytest.raises(RuntimeError, match=r"3\.37\.0"),
+            connect(":memory:"),
+        ):
+            pass
 
 
 class TestCreateSchema:

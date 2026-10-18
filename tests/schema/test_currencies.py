@@ -6,10 +6,10 @@ import pytest
 
 # The whitespace set the schema's checks strip: tab, LF, CR, space, NBSP.
 WHITESPACE = [
-    pytest.param("\t",     id="tab"),
-    pytest.param("\n",     id="lf"),
-    pytest.param("\r",     id="cr"),
-    pytest.param(" ",      id="space"),
+    pytest.param("\t", id="tab"),
+    pytest.param("\n", id="lf"),
+    pytest.param("\r", id="cr"),
+    pytest.param(" ", id="space"),
     pytest.param("\u00a0", id="nbsp"),
 ]
 
@@ -41,13 +41,17 @@ def add_currency(
         symbol: Value for the `symbol` column.
     """
     db.execute(
-        "INSERT INTO currencies (code, name, minor_unit, symbol) "
-        "VALUES (?, ?, ?, ?)",
+        """
+        INSERT INTO currencies (code, name, minor_unit, symbol)
+        VALUES (?, ?, ?, ?)
+        """,
         (code, name, minor_unit, symbol),
     )
 
 
-def fetch_currency(db: sqlite3.Connection, code: str) -> tuple[object, ...] | None:
+def fetch_currency(
+    db: sqlite3.Connection, code: str
+) -> tuple[object, ...] | None:
     """Fetch one row from `currencies` by its code.
 
     Args:
@@ -59,9 +63,11 @@ def fetch_currency(db: sqlite3.Connection, code: str) -> tuple[object, ...] | No
         has that code.
     """
     return db.execute(
-        "SELECT code, name, minor_unit, symbol "
-        "FROM currencies "
-        "WHERE code = ?",
+        """
+        SELECT code, name, minor_unit, symbol
+        FROM currencies
+        WHERE code = ?
+        """,
         (code,),
     ).fetchone()
 
@@ -74,16 +80,21 @@ def test_valid_currency_is_stored(db: sqlite3.Connection) -> None:
 class TestCode:
     """Tests of the `currencies.code` column."""
 
-    @pytest.mark.parametrize("code", [
-        pytest.param("eur",  id="lowercase"),
-        pytest.param("Eur",  id="mixed_case"),
-        pytest.param("EU",   id="too_short"),
-        pytest.param("EURO", id="too_long"),
-        pytest.param("E1R",  id="contains_digit"),
-        pytest.param("",     id="empty"),
-        pytest.param(None,   id="null"),
-    ])
-    def test_invalid_is_rejected(self, db: sqlite3.Connection, code: object) -> None:
+    @pytest.mark.parametrize(
+        "code",
+        [
+            pytest.param("eur", id="lowercase"),
+            pytest.param("Eur", id="mixed_case"),
+            pytest.param("EU", id="too_short"),
+            pytest.param("EURO", id="too_long"),
+            pytest.param("E1R", id="contains_digit"),
+            pytest.param("", id="empty"),
+            pytest.param(None, id="null"),
+        ],
+    )
+    def test_invalid_is_rejected(
+        self, db: sqlite3.Connection, code: object
+    ) -> None:
         with pytest.raises(sqlite3.IntegrityError, match="code"):
             add_currency(db, code=code)
 
@@ -92,7 +103,9 @@ class TestCode:
         with pytest.raises(sqlite3.IntegrityError, match="code"):
             add_currency(db, name="Euro again")
 
-    def test_well_formed_unknown_is_accepted(self, db: sqlite3.Connection) -> None:
+    def test_well_formed_unknown_is_accepted(
+        self, db: sqlite3.Connection
+    ) -> None:
         add_currency(db, code="AAA")
         assert fetch_currency(db, "AAA") is not None
 
@@ -100,12 +113,17 @@ class TestCode:
 class TestName:
     """Tests of the `currencies.name` column."""
 
-    @pytest.mark.parametrize("name", [
-        pytest.param(None, id="null"),
-        pytest.param("",   id="empty"),
-        *WHITESPACE,
-    ])
-    def test_blank_is_rejected(self, db: sqlite3.Connection, name: object) -> None:
+    @pytest.mark.parametrize(
+        "name",
+        [
+            pytest.param(None, id="null"),
+            pytest.param("", id="empty"),
+            *WHITESPACE,
+        ],
+    )
+    def test_blank_is_rejected(
+        self, db: sqlite3.Connection, name: object
+    ) -> None:
         with pytest.raises(sqlite3.IntegrityError, match="name"):
             add_currency(db, name=name)
 
@@ -118,7 +136,9 @@ class TestName:
         with pytest.raises(sqlite3.IntegrityError, match="name"):
             add_currency(db, name=name)
 
-    def test_inner_whitespace_is_accepted(self, db: sqlite3.Connection) -> None:
+    def test_inner_whitespace_is_accepted(
+        self, db: sqlite3.Connection
+    ) -> None:
         add_currency(db, code="USD", name="US Dollar")
         assert fetch_currency(db, "USD") == ("USD", "US Dollar", 2, "€")
 
@@ -134,32 +154,43 @@ class TestName:
 class TestMinorUnit:
     """Tests of the `currencies.minor_unit` column."""
 
-    @pytest.mark.parametrize("minor_unit", [
-        pytest.param(0, id="lower_bound"),
-        pytest.param(4, id="upper_bound"),
-        pytest.param(2, id="typical"),
-    ])
-    def test_valid_is_accepted(self, db: sqlite3.Connection, minor_unit: int) -> None:
+    @pytest.mark.parametrize(
+        "minor_unit",
+        [
+            pytest.param(0, id="lower_bound"),
+            pytest.param(4, id="upper_bound"),
+            pytest.param(2, id="typical"),
+        ],
+    )
+    def test_valid_is_accepted(
+        self, db: sqlite3.Connection, minor_unit: int
+    ) -> None:
         add_currency(db, minor_unit=minor_unit)
         assert fetch_currency(db, "EUR") == ("EUR", "Euro", minor_unit, "€")
 
-    @pytest.mark.parametrize("minor_unit", [
-        pytest.param(-1,    id="below_lower_bound"),
-        pytest.param(5,     id="above_upper_bound"),
-        pytest.param(1.5,   id="fraction"),
-        pytest.param(None,  id="null"),
-        pytest.param("two", id="text"),
-    ])
+    @pytest.mark.parametrize(
+        "minor_unit",
+        [
+            pytest.param(-1, id="below_lower_bound"),
+            pytest.param(5, id="above_upper_bound"),
+            pytest.param(1.5, id="fraction"),
+            pytest.param(None, id="null"),
+            pytest.param("two", id="text"),
+        ],
+    )
     def test_invalid_is_rejected(
         self, db: sqlite3.Connection, minor_unit: object
     ) -> None:
         with pytest.raises(sqlite3.IntegrityError, match="minor_unit"):
             add_currency(db, minor_unit=minor_unit)
 
-    @pytest.mark.parametrize("minor_unit", [
-        pytest.param(2.0, id="real"),
-        pytest.param("2", id="text"),
-    ])
+    @pytest.mark.parametrize(
+        "minor_unit",
+        [
+            pytest.param(2.0, id="real"),
+            pytest.param("2", id="text"),
+        ],
+    )
     def test_lossless_value_is_stored_as_integer(
         self, db: sqlite3.Connection, minor_unit: object
     ) -> None:
@@ -178,11 +209,16 @@ class TestSymbol:
         add_currency(db, symbol=None)
         assert fetch_currency(db, "EUR") == ("EUR", "Euro", 2, None)
 
-    @pytest.mark.parametrize("symbol", [
-        pytest.param("", id="empty"),
-        *WHITESPACE,
-    ])
-    def test_blank_is_rejected(self, db: sqlite3.Connection, symbol: str) -> None:
+    @pytest.mark.parametrize(
+        "symbol",
+        [
+            pytest.param("", id="empty"),
+            *WHITESPACE,
+        ],
+    )
+    def test_blank_is_rejected(
+        self, db: sqlite3.Connection, symbol: str
+    ) -> None:
         with pytest.raises(sqlite3.IntegrityError, match="symbol"):
             add_currency(db, symbol=symbol)
 
