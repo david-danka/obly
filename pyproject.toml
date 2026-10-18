@@ -22,6 +22,7 @@ classifiers = [
 [dependency-groups]
 dev = [
     "pytest>=8",
+    "ruff>=0.17",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -32,3 +33,26 @@ testpaths = ["tests"]
 addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
 filterwarnings = ["error"]
 xfail_strict = true
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle: style errors and warnings
+    "F",        # pyflakes: unused imports, undefined names
+    "I",        # isort: import order
+    "B",        # flake8-bugbear: likely bugs
+    "UP",       # pyupgrade: modern syntax for the target Python
+    "SIM",      # flake8-simplify: simpler equivalent code
+    "D",        # pydocstyle: docstrings
+    "PT",       # flake8-pytest-style: pytest conventions
+    "RUF",      # ruff's own rules
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Test functions and methods are named after what they check; no docstrings.
+"tests/**" = ["D102", "D103"]
