@@ -7,7 +7,7 @@ name = "obly"
 version = "0.1.0"
 description = "Every obol counts. A local-first, opinionated personal finance tracker and lifetime planner."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = []
 keywords = ["personal-finance", "budgeting", "sqlite", "cli"]
 classifiers = [
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Office/Business :: Financial :: Accounting",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8",
 ]
