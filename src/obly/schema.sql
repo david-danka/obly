@@ -33,4 +33,35 @@ CREATE TABLE currencies (
                 )
 ) STRICT, WITHOUT ROWID;
 
+/*
+Accounts: where the money is
+type is a lowercase identifier such as cash or credit_card. Which types
+exist and what they mean is defined in the app, not here.
+*/
+CREATE TABLE accounts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL UNIQUE COLLATE NOCASE
+                    CHECK (
+                        name <> ''
+                        AND name = trim(name, char(9, 10, 13, 32, 160))
+                        AND length(name) <= 100
+                    ),
+    type            TEXT NOT NULL
+                    CHECK (
+                        type GLOB '[a-z]*'
+                        AND type NOT GLOB '*[^a-z_]*'
+                        AND length(type) <= 50
+                    ),
+    currency_code   TEXT NOT NULL
+                    REFERENCES currencies (code) ON DELETE RESTRICT,
+    is_archived     INTEGER NOT NULL
+                    DEFAULT 0
+                    CHECK (is_archived IN (0, 1)),
+    created_at      TEXT NOT NULL
+                    DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                    CHECK (strftime('%Y-%m-%dT%H:%M:%fZ', created_at) IS created_at)
+) STRICT;
+
+CREATE INDEX accounts_currency_code ON accounts (currency_code);
+
 COMMIT;
