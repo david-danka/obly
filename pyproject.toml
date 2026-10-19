@@ -31,12 +31,16 @@ packages = ["src/obly"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Lets test files import shared modules in tests/, such as text_cases.
+pythonpath = ["tests"]
 addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
 filterwarnings = ["error"]
 xfail_strict = true
 
 [tool.ruff]
 line-length = 79
+# Treat modules in tests/ as first-party when sorting imports.
+src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = [

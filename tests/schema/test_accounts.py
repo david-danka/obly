@@ -5,20 +5,7 @@ import sqlite3
 
 import pytest
 
-# The whitespace set the schema's checks strip: tab, LF, CR, space, NBSP.
-WHITESPACE = [
-    pytest.param("\t", id="tab"),
-    pytest.param("\n", id="lf"),
-    pytest.param("\r", id="cr"),
-    pytest.param(" ", id="space"),
-    pytest.param("\u00a0", id="nbsp"),
-]
-
-# Templates that put a whitespace character before or after a value.
-PADDING = [
-    pytest.param("{whitespace}{value}", id="leading"),
-    pytest.param("{value}{whitespace}", id="trailing"),
-]
+from text_cases import PADDING, WHITESPACE
 
 # The format of `created_at`: ISO 8601 in UTC, with milliseconds.
 TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z")
