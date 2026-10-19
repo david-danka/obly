@@ -5,8 +5,15 @@ Tables and constraints only; no seed data.
 Foreign keys are enabled per connection by the app, not here.
 
 Conventions used in checks:
+- The schema enforces the shape of values; which values exist and what
+  they mean is up to the app.
+- Identifiers (code, type) are ASCII with a strict format; display text
+  (name, symbol) may be any Unicode.
 - Whitespace set: tab, LF, CR, space, NBSP, i.e. char(9, 10, 13, 32, 160).
 - Text length limits only keep garbage out; they are not business rules.
+- Ids that can leave the database are never reused (AUTOINCREMENT).
+
+The reasoning behind these is in docs/decisions/.
 */
 
 BEGIN;
