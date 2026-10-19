@@ -8,7 +8,7 @@
 The schema has two kinds of text columns:
 
 - **Identifiers** that the program compares against: `currencies.code` and
-  `accounts.type`.
+  `accounts.kind`.
 - **Display text** that people type and read: `currencies.name`,
   `currencies.symbol` and `accounts.name`.
 
@@ -26,7 +26,7 @@ Unicode text has pitfalls that matter for both:
 Identifiers are ASCII with a strict format:
 
 - `currencies.code`: three uppercase letters, as in ISO 4217.
-- `accounts.type`: lowercase letters and underscores, starting with a
+- `accounts.kind`: lowercase letters and underscores, starting with a
   letter, at most 50 characters.
 
 What users see for an identifier, such as "Hitelkártya" for

@@ -7,7 +7,7 @@ Foreign keys are enabled per connection by the app, not here.
 Conventions used in checks:
 - The schema enforces the shape of values; which values exist and what
   they mean is up to the app.
-- Identifiers (code, type) are ASCII with a strict format; display text
+- Identifiers (code, kind) are ASCII with a strict format; display text
   (name, symbol) may be any Unicode.
 - Whitespace set: tab, LF, CR, space, NBSP, i.e. char(9, 10, 13, 32, 160).
 - Text length limits only keep garbage out; they are not business rules.
@@ -42,7 +42,7 @@ CREATE TABLE currencies (
 
 /*
 Accounts: where the money is
-type is a lowercase identifier such as cash or credit_card. Which types
+kind is a lowercase identifier such as cash or credit_card. Which kinds
 exist and what they mean is defined in the app, not here.
 */
 CREATE TABLE accounts (
@@ -53,11 +53,11 @@ CREATE TABLE accounts (
                         AND name = trim(name, char(9, 10, 13, 32, 160))
                         AND length(name) <= 100
                     ),
-    type            TEXT NOT NULL
+    kind            TEXT NOT NULL
                     CHECK (
-                        type GLOB '[a-z]*'
-                        AND type NOT GLOB '*[^a-z_]*'
-                        AND length(type) <= 50
+                        kind GLOB '[a-z]*'
+                        AND kind NOT GLOB '*[^a-z_]*'
+                        AND length(kind) <= 50
                     ),
     currency_code   TEXT NOT NULL
                     REFERENCES currencies (code) ON DELETE RESTRICT,

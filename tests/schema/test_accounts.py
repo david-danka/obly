@@ -28,7 +28,7 @@ def db(db: sqlite3.Connection) -> sqlite3.Connection:
 def add_account(
     db: sqlite3.Connection,
     name: object = "Wallet",
-    account_type: object = "checking",
+    kind: object = "checking",
     currency_code: object = "HUF",
     **columns: object,
 ) -> int:
@@ -43,8 +43,7 @@ def add_account(
     Args:
         db: Connection with the schema applied and a `HUF` currency.
         name: Value for the `name` column.
-        account_type: Value for the `type` column. Named `account_type`
-            so it doesn't shadow the built-in `type`.
+        kind: Value for the `kind` column.
         currency_code: Value for the `currency_code` column.
         **columns: Values for any other columns, by column name.
 
@@ -53,7 +52,7 @@ def add_account(
     """
     values = {
         "name": name,
-        "type": account_type,
+        "kind": kind,
         "currency_code": currency_code,
         **columns,
     }
@@ -89,7 +88,7 @@ def test_valid_account_is_stored(db: sqlite3.Connection) -> None:
     account_id = add_account(db)
     row = db.execute(
         """
-        SELECT name, type, currency_code, is_archived
+        SELECT name, kind, currency_code, is_archived
         FROM accounts
         WHERE id = ?
         """,
@@ -182,11 +181,11 @@ class TestName:
         assert count == 2
 
 
-class TestType:
-    """Tests of the `accounts.type` column."""
+class TestKind:
+    """Tests of the `accounts.kind` column."""
 
     @pytest.mark.parametrize(
-        "account_type",
+        "kind",
         [
             pytest.param("cash", id="single_word"),
             pytest.param("credit_card", id="with_underscore"),
@@ -196,14 +195,14 @@ class TestType:
             pytest.param("crypto", id="unknown_to_the_app"),
         ],
     )
-    def test_well_formed_type_is_accepted(
-        self, db: sqlite3.Connection, account_type: str
+    def test_well_formed_kind_is_accepted(
+        self, db: sqlite3.Connection, kind: str
     ) -> None:
-        account_id = add_account(db, account_type=account_type)
-        assert fetch_column(db, account_id, "type") == account_type
+        account_id = add_account(db, kind=kind)
+        assert fetch_column(db, account_id, "kind") == kind
 
     @pytest.mark.parametrize(
-        "account_type",
+        "kind",
         [
             pytest.param("Cash", id="uppercase"),
             pytest.param(" cash", id="surrounding_whitespace"),
@@ -217,10 +216,10 @@ class TestType:
         ],
     )
     def test_invalid_is_rejected(
-        self, db: sqlite3.Connection, account_type: object
+        self, db: sqlite3.Connection, kind: object
     ) -> None:
-        with pytest.raises(sqlite3.IntegrityError, match="type"):
-            add_account(db, account_type=account_type)
+        with pytest.raises(sqlite3.IntegrityError, match="kind"):
+            add_account(db, kind=kind)
 
 
 class TestCurrencyCode:
