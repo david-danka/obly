@@ -10,7 +10,9 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: .venv/Scripts/python.exe -m pytest -q
+        # The leading ./ matters: without it, Windows can't find the
+        # program when git starts the hook from its own shell.
+        entry: ./.venv/Scripts/python.exe -m pytest -q
         language: system
         pass_filenames: false
         files: ^(src/|tests/|pyproject\.toml$)
