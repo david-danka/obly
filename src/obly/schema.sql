@@ -69,6 +69,6 @@ CREATE TABLE accounts (
                     CHECK (strftime('%Y-%m-%dT%H:%M:%fZ', created_at) IS created_at)
 ) STRICT;
 
-CREATE INDEX accounts_currency_code ON accounts (currency_code);
+CREATE INDEX idx_accounts_currency_code ON accounts (currency_code);
 
 COMMIT;
