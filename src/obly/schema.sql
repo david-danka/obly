@@ -71,4 +71,62 @@ CREATE TABLE accounts (
 
 CREATE INDEX idx_accounts_currency_code ON accounts (currency_code);
 
+/*
+Categories: what money is spent on or earned from, nested at most two
+levels deep (category and subcategory).
+kind is a fixed list: income vs expense is a fact of bookkeeping, not a 
+policy that may change.
+*/
+CREATE TABLE categories (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    parent_id    INTEGER,
+    name         TEXT NOT NULL COLLATE NOCASE
+                 CHECK (
+                     name <> ''
+                     AND name = trim(name, char(9, 10, 13, 32, 160))
+                     AND length(name) <= 100
+                 ),
+    kind         TEXT NOT NULL
+                 CHECK (kind IN ('income', 'expense')),
+    is_archived  INTEGER NOT NULL
+                 DEFAULT 0
+                 CHECK (is_archived IN (0, 1)),
+    CHECK (parent_id IS NULL OR parent_id <> id),
+    -- A subcategory has the same kind as its parent.
+    UNIQUE (id, kind),
+    FOREIGN KEY (parent_id, kind)
+        REFERENCES categories (id, kind) ON DELETE RESTRICT
+) STRICT;
+
+CREATE UNIQUE INDEX uq_categories_top_level_name_kind
+    ON categories (name, kind)
+    WHERE parent_id IS NULL;
+CREATE UNIQUE INDEX uq_categories_parent_name
+    ON categories (parent_id, name)
+    WHERE parent_id IS NOT NULL;
+
+-- Keep the tree two levels deep, which also rules out cycles.
+CREATE TRIGGER trg_categories_depth_on_insert
+BEFORE INSERT ON categories
+WHEN
+    NEW.parent_id IS NOT NULL
+    AND (SELECT parent_id FROM categories WHERE id = NEW.parent_id)
+        IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'categories nest at most two levels deep');
+END;
+
+CREATE TRIGGER trg_categories_depth_on_update
+BEFORE UPDATE OF parent_id ON categories
+WHEN
+    NEW.parent_id IS NOT NULL
+    AND (
+        (SELECT parent_id FROM categories WHERE id = NEW.parent_id)
+            IS NOT NULL
+        OR EXISTS (SELECT 1 FROM categories WHERE parent_id = NEW.id)
+    )
+BEGIN
+    SELECT RAISE(ABORT, 'categories nest at most two levels deep');
+END;
+
 COMMIT;
