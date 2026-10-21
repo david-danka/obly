@@ -185,10 +185,18 @@ BEFORE INSERT ON transactions
 WHEN
     (
         NEW.kind = 'opening_balance'
-        AND EXISTS (
-            SELECT 1 FROM transactions
-            WHERE account_id = NEW.account_id
-                AND occurred_on < NEW.occurred_on
+        AND (
+            EXISTS (
+                SELECT 1 FROM transactions
+                WHERE account_id = NEW.account_id
+                    AND occurred_on < NEW.occurred_on
+            )
+            OR EXISTS (
+                SELECT 1 FROM transfers
+                WHERE NEW.account_id
+                        IN (from_account_id, to_account_id)
+                    AND occurred_on < NEW.occurred_on
+            )
         )
     )
     OR (
@@ -212,11 +220,19 @@ BEFORE UPDATE OF account_id, kind, occurred_on ON transactions
 WHEN
     (
         NEW.kind = 'opening_balance'
-        AND EXISTS (
-            SELECT 1 FROM transactions
-            WHERE account_id = NEW.account_id
-                AND id <> NEW.id
-                AND occurred_on < NEW.occurred_on
+        AND (
+            EXISTS (
+                SELECT 1 FROM transactions
+                WHERE account_id = NEW.account_id
+                    AND id <> NEW.id
+                    AND occurred_on < NEW.occurred_on
+            )
+            OR EXISTS (
+                SELECT 1 FROM transfers
+                WHERE NEW.account_id
+                        IN (from_account_id, to_account_id)
+                    AND occurred_on < NEW.occurred_on
+            )
         )
     )
     OR (
@@ -228,6 +244,107 @@ WHEN
                 AND kind = 'opening_balance'
                 AND occurred_on > NEW.occurred_on
         )
+    )
+BEGIN
+    SELECT RAISE(
+        ABORT,
+        'an opening balance must be the earliest transaction of its account'
+    );
+END;
+
+/*
+Transfers: money moving between two of your own accounts. Amounts are
+positive, in minor units of each account's currency; the money leaves
+from_account_id and arrives in to_account_id. The two amounts can only
+differ between accounts with different currencies.
+*/
+CREATE TABLE transfers (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_account_id  INTEGER NOT NULL
+                     REFERENCES accounts (id) ON DELETE RESTRICT,
+    to_account_id    INTEGER NOT NULL
+                     REFERENCES accounts (id) ON DELETE RESTRICT,
+    occurred_on      TEXT NOT NULL
+                     CHECK (date(occurred_on) IS occurred_on),
+    from_amount      INTEGER NOT NULL
+                     CHECK (from_amount > 0),
+    to_amount        INTEGER NOT NULL
+                     CHECK (to_amount > 0),
+    note             TEXT
+                     CHECK (
+                         note <> ''
+                         AND note = trim(note, char(9, 10, 13, 32, 160))
+                         AND length(note) <= 500
+                     ),
+    created_at       TEXT NOT NULL
+                     DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                     CHECK (
+                         strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+                         IS created_at
+                     ),
+    CHECK (from_account_id <> to_account_id)
+) STRICT;
+
+CREATE INDEX idx_transfers_from_account_id_occurred_on
+    ON transfers (from_account_id, occurred_on);
+CREATE INDEX idx_transfers_to_account_id_occurred_on
+    ON transfers (to_account_id, occurred_on);
+CREATE INDEX idx_transfers_occurred_on
+    ON transfers (occurred_on);
+
+-- Between accounts of the same currency, what leaves must arrive.
+CREATE TRIGGER trg_transfers_same_currency_amounts_on_insert
+BEFORE INSERT ON transfers
+WHEN
+    NEW.from_amount <> NEW.to_amount
+    AND (SELECT currency_code FROM accounts WHERE id = NEW.from_account_id)
+        = (SELECT currency_code FROM accounts WHERE id = NEW.to_account_id)
+BEGIN
+    SELECT RAISE(
+        ABORT,
+        'a transfer within one currency must move equal amounts'
+    );
+END;
+
+CREATE TRIGGER trg_transfers_same_currency_amounts_on_update
+BEFORE UPDATE OF from_account_id, to_account_id, from_amount, to_amount
+    ON transfers
+WHEN
+    NEW.from_amount <> NEW.to_amount
+    AND (SELECT currency_code FROM accounts WHERE id = NEW.from_account_id)
+        = (SELECT currency_code FROM accounts WHERE id = NEW.to_account_id)
+BEGIN
+    SELECT RAISE(
+        ABORT,
+        'a transfer within one currency must move equal amounts'
+    );
+END;
+
+-- A transfer can't be dated before the opening balance of either account.
+CREATE TRIGGER trg_transfers_opening_balance_first_on_insert
+BEFORE INSERT ON transfers
+WHEN
+    EXISTS (
+        SELECT 1 FROM transactions
+        WHERE account_id IN (NEW.from_account_id, NEW.to_account_id)
+            AND kind = 'opening_balance'
+            AND occurred_on > NEW.occurred_on
+    )
+BEGIN
+    SELECT RAISE(
+        ABORT,
+        'an opening balance must be the earliest transaction of its account'
+    );
+END;
+
+CREATE TRIGGER trg_transfers_opening_balance_first_on_update
+BEFORE UPDATE OF from_account_id, to_account_id, occurred_on ON transfers
+WHEN
+    EXISTS (
+        SELECT 1 FROM transactions
+        WHERE account_id IN (NEW.from_account_id, NEW.to_account_id)
+            AND kind = 'opening_balance'
+            AND occurred_on > NEW.occurred_on
     )
 BEGIN
     SELECT RAISE(
