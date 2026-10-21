@@ -34,3 +34,4 @@ bookkeeping.
 - The unit and the sign convention for amounts still have to be decided,
   together with the transactions table. The likely choice is minor units of
   the account's currency, which is what `currencies.minor_unit` is for.
+- Update: the unit and the sign convention are settled by decision 5.

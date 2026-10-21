@@ -129,4 +129,109 @@ BEGIN
     SELECT RAISE(ABORT, 'categories nest at most two levels deep');
 END;
 
+-- Transactions: money into (positive amount) or out of (negative amount)
+-- one account, in minor units of the account's currency. A regular
+-- transaction has a category; an opening balance is the money an account
+-- already held when tracking began, so it has none. Transfers between
+-- accounts have their own table.
+CREATE TABLE transactions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id   INTEGER NOT NULL
+                 REFERENCES accounts (id) ON DELETE RESTRICT,
+    kind         TEXT NOT NULL
+                 DEFAULT 'regular'
+                 CHECK (kind IN ('regular', 'opening_balance')),
+    category_id  INTEGER
+                 REFERENCES categories (id) ON DELETE RESTRICT,
+    occurred_on  TEXT NOT NULL
+                 CHECK (date(occurred_on) IS occurred_on),
+    amount       INTEGER NOT NULL
+                 CHECK (amount <> 0),
+    note         TEXT
+                 CHECK (
+                     note <> ''
+                     AND note = trim(note, char(9, 10, 13, 32, 160))
+                     AND length(note) <= 500
+                 ),
+    created_at   TEXT NOT NULL
+                 DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                 CHECK (
+                     strftime('%Y-%m-%dT%H:%M:%fZ', created_at) IS created_at
+                 ),
+    CHECK (
+        (kind = 'regular' AND category_id IS NOT NULL)
+        OR (kind = 'opening_balance' AND category_id IS NULL)
+    )
+) STRICT;
+
+-- An account has at most one opening balance; without one, it started empty.
+CREATE UNIQUE INDEX uq_transactions_opening_balance_account_id
+    ON transactions (account_id)
+    WHERE kind = 'opening_balance';
+
+CREATE INDEX idx_transactions_account_id_occurred_on
+    ON transactions (account_id, occurred_on);
+CREATE INDEX idx_transactions_category_id_occurred_on
+    ON transactions (category_id, occurred_on);
+CREATE INDEX idx_transactions_occurred_on
+    ON transactions (occurred_on);
+
+-- An opening balance is where an account's history starts, so no other
+-- transaction of the account may be dated before it. Same day is fine.
+CREATE TRIGGER trg_transactions_opening_balance_first_on_insert
+BEFORE INSERT ON transactions
+WHEN
+    (
+        NEW.kind = 'opening_balance'
+        AND EXISTS (
+            SELECT 1 FROM transactions
+            WHERE account_id = NEW.account_id
+                AND occurred_on < NEW.occurred_on
+        )
+    )
+    OR (
+        NEW.kind = 'regular'
+        AND EXISTS (
+            SELECT 1 FROM transactions
+            WHERE account_id = NEW.account_id
+                AND kind = 'opening_balance'
+                AND occurred_on > NEW.occurred_on
+        )
+    )
+BEGIN
+    SELECT RAISE(
+        ABORT,
+        'an opening balance must be the earliest transaction of its account'
+    );
+END;
+
+CREATE TRIGGER trg_transactions_opening_balance_first_on_update
+BEFORE UPDATE OF account_id, kind, occurred_on ON transactions
+WHEN
+    (
+        NEW.kind = 'opening_balance'
+        AND EXISTS (
+            SELECT 1 FROM transactions
+            WHERE account_id = NEW.account_id
+                AND id <> NEW.id
+                AND occurred_on < NEW.occurred_on
+        )
+    )
+    OR (
+        NEW.kind = 'regular'
+        AND EXISTS (
+            SELECT 1 FROM transactions
+            WHERE account_id = NEW.account_id
+                AND id <> NEW.id
+                AND kind = 'opening_balance'
+                AND occurred_on > NEW.occurred_on
+        )
+    )
+BEGIN
+    SELECT RAISE(
+        ABORT,
+        'an opening balance must be the earliest transaction of its account'
+    );
+END;
+
 COMMIT;
