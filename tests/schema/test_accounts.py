@@ -21,7 +21,12 @@ def db(db: sqlite3.Connection) -> sqlite3.Connection:
     Returns:
         The same connection, with a `HUF` row in `currencies`.
     """
-    db.execute("INSERT INTO currencies VALUES ('HUF', 'Forint', 2, 'Ft')")
+    db.execute(
+        """
+        INSERT INTO currencies
+        VALUES ('HUF', 'Forint', 2, 'Ft')
+        """
+    )
     return db
 
 

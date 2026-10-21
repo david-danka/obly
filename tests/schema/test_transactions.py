@@ -46,7 +46,10 @@ def db(db: sqlite3.Connection) -> sqlite3.Connection:
         ],
     )
     db.executemany(
-        "INSERT INTO categories (id, name, kind) VALUES (?, ?, ?)",
+        """
+        INSERT INTO categories (id, name, kind)
+        VALUES (?, ?, ?)
+        """,
         [
             (FOOD, "Food", "expense"),
             (SALARY, "Salary", "income"),
