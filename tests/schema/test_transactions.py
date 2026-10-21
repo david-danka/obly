@@ -5,6 +5,7 @@ import sqlite3
 
 import pytest
 
+from obly.limits import NOTE_MAX_LENGTH
 from text_cases import PADDING, WHITESPACE
 
 # The format of `created_at`: ISO 8601 in UTC, with milliseconds.
@@ -381,12 +382,14 @@ class TestNote:
         assert fetch_column(db, transaction_id, "note") == "Lunch with Anna"
 
     def test_max_length_is_accepted(self, db: sqlite3.Connection) -> None:
-        transaction_id = add_transaction(db, note="x" * 500)
-        assert fetch_column(db, transaction_id, "note") == "x" * 500
+        transaction_id = add_transaction(db, note="x" * NOTE_MAX_LENGTH)
+        assert (
+            fetch_column(db, transaction_id, "note") == "x" * NOTE_MAX_LENGTH
+        )
 
     def test_over_max_length_is_rejected(self, db: sqlite3.Connection) -> None:
         with pytest.raises(sqlite3.IntegrityError, match="note"):
-            add_transaction(db, note="x" * 501)
+            add_transaction(db, note="x" * (NOTE_MAX_LENGTH + 1))
 
 
 class TestCreatedAt:

@@ -11,6 +11,8 @@ Conventions used in checks:
   (name, symbol) may be any Unicode.
 - Whitespace set: tab, LF, CR, space, NBSP, i.e. char(9, 10, 13, 32, 160).
 - Text length limits only keep garbage out; they are not business rules.
+  They repeat the constants in src/obly/limits.py; the tests check that
+  both agree.
 - Ids that can leave the database are never reused (AUTOINCREMENT).
 
 The reasoning behind these is in docs/decisions/.

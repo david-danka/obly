@@ -4,6 +4,7 @@ import sqlite3
 
 import pytest
 
+from obly.limits import NAME_MAX_LENGTH, SYMBOL_MAX_LENGTH
 from text_cases import PADDING, WHITESPACE
 
 
@@ -130,12 +131,17 @@ class TestName:
         assert fetch_currency(db, "USD") == ("USD", "US Dollar", 2, "€")
 
     def test_max_length_is_accepted(self, db: sqlite3.Connection) -> None:
-        add_currency(db, name="x" * 100)
-        assert fetch_currency(db, "EUR") == ("EUR", "x" * 100, 2, "€")
+        add_currency(db, name="x" * NAME_MAX_LENGTH)
+        assert fetch_currency(db, "EUR") == (
+            "EUR",
+            "x" * NAME_MAX_LENGTH,
+            2,
+            "€",
+        )
 
     def test_over_max_length_is_rejected(self, db: sqlite3.Connection) -> None:
         with pytest.raises(sqlite3.IntegrityError, match="name"):
-            add_currency(db, name="x" * 101)
+            add_currency(db, name="x" * (NAME_MAX_LENGTH + 1))
 
 
 class TestMinorUnit:
@@ -219,9 +225,14 @@ class TestSymbol:
             add_currency(db, symbol=symbol)
 
     def test_max_length_is_accepted(self, db: sqlite3.Connection) -> None:
-        add_currency(db, symbol="x" * 16)
-        assert fetch_currency(db, "EUR") == ("EUR", "Euro", 2, "x" * 16)
+        add_currency(db, symbol="x" * SYMBOL_MAX_LENGTH)
+        assert fetch_currency(db, "EUR") == (
+            "EUR",
+            "Euro",
+            2,
+            "x" * SYMBOL_MAX_LENGTH,
+        )
 
     def test_over_max_length_is_rejected(self, db: sqlite3.Connection) -> None:
         with pytest.raises(sqlite3.IntegrityError, match="symbol"):
-            add_currency(db, symbol="x" * 17)
+            add_currency(db, symbol="x" * (SYMBOL_MAX_LENGTH + 1))

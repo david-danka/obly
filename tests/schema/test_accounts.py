@@ -5,6 +5,7 @@ import sqlite3
 
 import pytest
 
+from obly.limits import ACCOUNT_KIND_MAX_LENGTH, NAME_MAX_LENGTH
 from text_cases import PADDING, WHITESPACE
 
 # The format of `created_at`: ISO 8601 in UTC, with milliseconds.
@@ -146,12 +147,12 @@ class TestName:
         assert fetch_column(db, account_id, "name") == "Daily Spending"
 
     def test_max_length_is_accepted(self, db: sqlite3.Connection) -> None:
-        account_id = add_account(db, name="x" * 100)
-        assert fetch_column(db, account_id, "name") == "x" * 100
+        account_id = add_account(db, name="x" * NAME_MAX_LENGTH)
+        assert fetch_column(db, account_id, "name") == "x" * NAME_MAX_LENGTH
 
     def test_over_max_length_is_rejected(self, db: sqlite3.Connection) -> None:
         with pytest.raises(sqlite3.IntegrityError, match="name"):
-            add_account(db, name="x" * 101)
+            add_account(db, name="x" * (NAME_MAX_LENGTH + 1))
 
     @pytest.mark.parametrize(
         "duplicate",
@@ -194,7 +195,7 @@ class TestKind:
         [
             pytest.param("cash", id="single_word"),
             pytest.param("credit_card", id="with_underscore"),
-            pytest.param("x" * 50, id="max_length"),
+            pytest.param("x" * ACCOUNT_KIND_MAX_LENGTH, id="max_length"),
             # The set of types lives in the app, so the schema accepts
             # any well-formed identifier.
             pytest.param("crypto", id="unknown_to_the_app"),
@@ -215,7 +216,9 @@ class TestKind:
             pytest.param("_cash", id="leading_underscore"),
             pytest.param("cash2", id="digit"),
             pytest.param("kártya", id="non_ascii"),
-            pytest.param("x" * 51, id="over_max_length"),
+            pytest.param(
+                "x" * (ACCOUNT_KIND_MAX_LENGTH + 1), id="over_max_length"
+            ),
             pytest.param("", id="empty"),
             pytest.param(None, id="null"),
         ],
