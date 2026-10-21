@@ -148,20 +148,20 @@ def fetch_column(
     ).fetchone()[0]
 
 
-def set_column(
-    db: sqlite3.Connection, transaction_id: int, column: str, value: object
+def update_transaction(
+    db: sqlite3.Connection, transaction_id: int, **columns: object
 ) -> None:
-    """Change one column of one row in `transactions`.
+    """Change columns of one row in `transactions`.
 
     Args:
         db: Connection with the schema applied.
         transaction_id: The `id` of the row.
-        column: The name of the column.
-        value: The new value.
+        **columns: The new values, by column name.
     """
+    assignments = ", ".join(f"{name} = ?" for name in columns)
     db.execute(
-        f"UPDATE transactions SET {column} = ? WHERE id = ?",
-        (value, transaction_id),
+        f"UPDATE transactions SET {assignments} WHERE id = ?",
+        (*columns.values(), transaction_id),
     )
 
 
@@ -475,7 +475,7 @@ class TestOpeningBalance:
         add_opening_balance(db, occurred_on="2026-01-01")
         transaction_id = add_transaction(db, occurred_on="2026-02-01")
         with pytest.raises(sqlite3.IntegrityError, match="opening balance"):
-            set_column(db, transaction_id, "occurred_on", "2025-12-01")
+            update_transaction(db, transaction_id, occurred_on="2025-12-01")
 
     def test_opening_balance_cannot_move_after_a_transaction(
         self, db: sqlite3.Connection
@@ -483,14 +483,14 @@ class TestOpeningBalance:
         opening_id = add_opening_balance(db, occurred_on="2026-01-01")
         add_transaction(db, occurred_on="2026-02-01")
         with pytest.raises(sqlite3.IntegrityError, match="opening balance"):
-            set_column(db, opening_id, "occurred_on", "2026-03-01")
+            update_transaction(db, opening_id, occurred_on="2026-03-01")
 
     def test_opening_balance_can_move_earlier(
         self, db: sqlite3.Connection
     ) -> None:
         opening_id = add_opening_balance(db, occurred_on="2026-01-01")
         add_transaction(db, occurred_on="2026-02-01")
-        set_column(db, opening_id, "occurred_on", "2025-06-01")
+        update_transaction(db, opening_id, occurred_on="2025-06-01")
         assert fetch_column(db, opening_id, "occurred_on") == "2025-06-01"
 
     def test_transaction_cannot_move_into_an_account_before_its_start(
@@ -501,7 +501,7 @@ class TestOpeningBalance:
             db, account_id=WALLET, occurred_on="2026-04-01"
         )
         with pytest.raises(sqlite3.IntegrityError, match="opening balance"):
-            set_column(db, transaction_id, "account_id", BANK)
+            update_transaction(db, transaction_id, account_id=BANK)
 
     def test_other_accounts_are_unaffected(
         self, db: sqlite3.Connection
@@ -515,5 +515,5 @@ class TestOpeningBalance:
     def test_unrelated_column_can_change(self, db: sqlite3.Connection) -> None:
         opening_id = add_opening_balance(db, amount=200_000)
         add_transaction(db, occurred_on="2026-02-01")
-        set_column(db, opening_id, "amount", 250_000)
+        update_transaction(db, opening_id, amount=250_000)
         assert fetch_column(db, opening_id, "amount") == 250_000
