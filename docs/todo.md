@@ -6,8 +6,6 @@ the record.
 
 ## For the MVP
 
-- [ ] **`account_entries` view** combining transactions and both sides of
-      transfers, so a balance is a single `SUM(amount)`.
 - [ ] **Schema migrations:** numbered upgrade steps, applied at startup
       based on `PRAGMA user_version`. Needed before entering real data, so
       later schema changes don't mean starting over.

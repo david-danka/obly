@@ -377,4 +377,48 @@ BEGIN
     );
 END;
 
+/*
+Account entries: every movement of money into or out of one account, from
+both transactions and transfers, with amounts signed as in transactions.
+A transfer appears twice: as transfer_out on the account it leaves, with
+a negative amount, and as transfer_in on the account it arrives in.
+An account's balance is SUM(amount) over its entries.
+*/
+CREATE VIEW account_entries AS
+    SELECT
+        account_id,
+        occurred_on,
+        amount,
+        kind,
+        category_id,
+        NULL AS counterpart_account_id,
+        id AS transaction_id,
+        NULL AS transfer_id,
+        note
+    FROM transactions
+    UNION ALL
+    SELECT
+        from_account_id AS account_id,
+        occurred_on,
+        -from_amount AS amount,
+        'transfer_out' AS kind,
+        NULL AS category_id,
+        to_account_id AS counterpart_account_id,
+        NULL AS transaction_id,
+        id AS transfer_id,
+        note
+    FROM transfers
+    UNION ALL
+    SELECT
+        to_account_id AS account_id,
+        occurred_on,
+        to_amount AS amount,
+        'transfer_in' AS kind,
+        NULL AS category_id,
+        from_account_id AS counterpart_account_id,
+        NULL AS transaction_id,
+        id AS transfer_id,
+        note
+    FROM transfers;
+
 COMMIT;

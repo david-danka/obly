@@ -14,7 +14,7 @@ The smallest obly you can use with real money.
 - ✅ **Categories:** income or expense, with optional subcategories.
 - ✅ **Transactions:** signed amounts, opening balances, refunds.
 - ✅ **Transfers:** between your own accounts, also across currencies.
-- ⬜ **Balances:** an `account_entries` view that combines transactions and
+- ✅ **Balances:** an `account_entries` view that combines transactions and
   transfers, so a balance is a single sum.
 - ✅ **Currency freeze:** an account's currency can't change once money is
   recorded on it, or every stored amount would change meaning.
