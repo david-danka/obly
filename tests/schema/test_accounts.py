@@ -90,6 +90,64 @@ def fetch_column(
     ).fetchone()[0]
 
 
+def record_transaction(db: sqlite3.Connection, account_id: int) -> None:
+    """Record money on an account, as an opening balance.
+
+    Args:
+        db: Connection with the rows of the `db` fixture.
+        account_id: The account to record the money on.
+    """
+    db.execute(
+        """
+        INSERT INTO transactions (account_id, kind, occurred_on, amount)
+        VALUES (?, 'opening_balance', '2026-01-01', 100000)
+        """,
+        (account_id,),
+    )
+
+
+def record_transfer(
+    db: sqlite3.Connection, from_account_id: int, to_account_id: int
+) -> None:
+    """Record a transfer of 10,000 between two accounts of one currency.
+
+    Args:
+        db: Connection with the rows of the `db` fixture.
+        from_account_id: The account the money leaves.
+        to_account_id: The account the money arrives in.
+    """
+    db.execute(
+        """
+        INSERT INTO transfers (
+            from_account_id,
+            to_account_id,
+            occurred_on,
+            from_amount,
+            to_amount
+        )
+        VALUES (?, ?, '2026-10-01', 10000, 10000)
+        """,
+        (from_account_id, to_account_id),
+    )
+
+
+def update_account(
+    db: sqlite3.Connection, account_id: int, **columns: object
+) -> None:
+    """Change columns of one row in `accounts`.
+
+    Args:
+        db: Connection with the schema applied.
+        account_id: The `id` of the row.
+        **columns: The new values, by column name.
+    """
+    assignments = ", ".join(f"{name} = ?" for name in columns)
+    db.execute(
+        f"UPDATE accounts SET {assignments} WHERE id = ?",
+        (*columns.values(), account_id),
+    )
+
+
 def test_valid_account_is_stored(db: sqlite3.Connection) -> None:
     account_id = add_account(db)
     row = db.execute(
@@ -258,6 +316,67 @@ class TestCurrencyCode:
         db.execute("DELETE FROM currencies WHERE code = 'EUR'")
         count = db.execute("SELECT count(*) FROM currencies").fetchone()[0]
         assert count == 1
+
+
+class TestCurrencyFreeze:
+    """Tests of freezing an account's currency once money is recorded."""
+
+    @pytest.fixture(autouse=True)
+    def add_euro(self, db: sqlite3.Connection) -> None:
+        """Add `EUR` as a second currency to switch to.
+
+        Args:
+            db: Connection with the rows of the `db` fixture.
+        """
+        db.execute("INSERT INTO currencies VALUES ('EUR', 'Euro', 2, '€')")
+
+    def test_unused_account_can_change_currency(
+        self, db: sqlite3.Connection
+    ) -> None:
+        account_id = add_account(db)
+        update_account(db, account_id, currency_code="EUR")
+        assert fetch_column(db, account_id, "currency_code") == "EUR"
+
+    def test_account_with_transactions_cannot_change_currency(
+        self, db: sqlite3.Connection
+    ) -> None:
+        account_id = add_account(db)
+        record_transaction(db, account_id)
+        with pytest.raises(sqlite3.IntegrityError, match="currency"):
+            update_account(db, account_id, currency_code="EUR")
+
+    @pytest.mark.parametrize(
+        "side",
+        [
+            pytest.param("from", id="outgoing_transfer"),
+            pytest.param("to", id="incoming_transfer"),
+        ],
+    )
+    def test_account_with_transfers_cannot_change_currency(
+        self, db: sqlite3.Connection, side: str
+    ) -> None:
+        wallet = add_account(db, name="Wallet")
+        bank = add_account(db, name="Bank")
+        if side == "from":
+            record_transfer(db, from_account_id=wallet, to_account_id=bank)
+        else:
+            record_transfer(db, from_account_id=bank, to_account_id=wallet)
+        with pytest.raises(sqlite3.IntegrityError, match="currency"):
+            update_account(db, wallet, currency_code="EUR")
+
+    def test_same_currency_can_be_set_again(
+        self, db: sqlite3.Connection
+    ) -> None:
+        account_id = add_account(db)
+        record_transaction(db, account_id)
+        update_account(db, account_id, currency_code="HUF")
+        assert fetch_column(db, account_id, "currency_code") == "HUF"
+
+    def test_other_columns_can_change(self, db: sqlite3.Connection) -> None:
+        account_id = add_account(db, name="Wallet")
+        record_transaction(db, account_id)
+        update_account(db, account_id, name="Pocket")
+        assert fetch_column(db, account_id, "name") == "Pocket"
 
 
 class TestIsArchived:

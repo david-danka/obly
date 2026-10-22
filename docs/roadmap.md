@@ -16,7 +16,7 @@ The smallest obly you can use with real money.
 - ✅ **Transfers:** between your own accounts, also across currencies.
 - ⬜ **Balances:** an `account_entries` view that combines transactions and
   transfers, so a balance is a single sum.
-- ⬜ **Currency freeze:** an account's currency can't change once money is
+- ✅ **Currency freeze:** an account's currency can't change once money is
   recorded on it, or every stored amount would change meaning.
 - ⬜ **CLI:** add, list, edit and delete transactions and transfers; show
   balances; show spending by category per month.

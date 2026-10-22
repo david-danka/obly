@@ -74,6 +74,30 @@ CREATE TABLE accounts (
 CREATE INDEX idx_accounts_currency_code ON accounts (currency_code);
 
 /*
+Amounts are stored in minor units of their account's currency, so once
+money is recorded on an account, changing its currency would silently
+change what every amount means. (transactions and transfers are created
+further below; SQLite looks them up only when the trigger runs.)
+*/
+CREATE TRIGGER trg_accounts_currency_frozen_once_used
+BEFORE UPDATE OF currency_code ON accounts
+WHEN
+    NEW.currency_code IS NOT OLD.currency_code
+    AND (
+        EXISTS (SELECT 1 FROM transactions WHERE account_id = OLD.id)
+        OR EXISTS (
+            SELECT 1 FROM transfers
+            WHERE OLD.id IN (from_account_id, to_account_id)
+        )
+    )
+BEGIN
+    SELECT RAISE(
+        ABORT,
+        'an account''s currency can''t change once money is recorded on it'
+    );
+END;
+
+/*
 Categories: what money is spent on or earned from, nested at most two
 levels deep (category and subcategory).
 kind is a fixed list: income vs expense is a fact of bookkeeping, not a 
